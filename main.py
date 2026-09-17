@@ -190,16 +190,16 @@ def start_cmd(message):
     get_user(user_id, message.from_user.username, message.from_user.first_name)
     
     inline_kb = types.InlineKeyboardMarkup()
-    inline_kb.add(types.InlineKeyboardButton("🚀 Join Channel", url="https://t.me/JUSTTRUSTBR0"))
-    inline_kb.add(types.InlineKeyboardButton("👥 Join Group", url="https://t.me/buyselgroup0"))
+    inline_kb.add(types.InlineKeyboardButton("🚀 Join Channel", url="https://t.me/SMMproLiat"))
+    inline_kb.add(types.InlineKeyboardButton("👥 Join Group", url="https://t.me/SMMproLiat"))
     inline_kb.add(types.InlineKeyboardButton("⚡ Verify Membership", callback_data="verify"))
 
     welcome_text = (
-        "👑 **WELCOME TO SERVICE MASTER** ⚡\n"
+        "👑 **WELCOME TO SMM PRO** ⚡\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "বটটি ব্যবহার করতে নিচের চ্যানেল ও গ্রুপে অবশ্যই জয়েন করুন।\n"
-        "📢 অফিসিয়াল চ্যানেল: @JUSTTRUSTBR0\n"
-        "💬 অফিসিয়াল গ্রুপ: @buyselgroup0\n\n"
+        "📢 অফিসিয়াল চ্যানেল: @smm_liat_itbot\n"
+        "💬 অফিসিয়াল গ্রুপ: @smm_liat_itbot\n\n"
         "🟢 জয়েন শেষ হলে নিচে Verify বাটনে ক্লিক করুন!"
     )
     bot.send_message(message.chat.id, welcome_text, parse_mode="Markdown", reply_markup=inline_kb)
