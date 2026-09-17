@@ -53,7 +53,7 @@ def init_db():
     cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("gateway_link", "https://yourpaymentgateway.com")')
     cursor.execute('REPLACE INTO settings (key, value) VALUES ("log_channel", ?)', (ORDER_LOG_CHANNEL,))
 
-    # আপনার দেয়া সর্বশেষ প্রাইস লিস্ট (১০০০ টির রেট অনুযায়ী পার ইউনিট বের করে সেট করা হয়েছে)
+    # সার্ভিস ও প্রাইস কনফিগারেশন
     default_services = [
         # Telegram
         ("tg_member_norefill", "💥 TG 1K Member (NoRefill)", 0.03, 34),
@@ -466,7 +466,6 @@ def handle_all_messages(message):
         service_data = services[text]
         user_states[user_id] = {"service_name": text, "step": "quantity", "rate": service_data["rate"], "min": service_data["min"]}
         
-        min_cost = service_data["min"] * service_data["rate"]
         bot.send_message(
             chat_id,
             f"🎯 **{text}**\n"
@@ -490,44 +489,44 @@ def handle_all_messages(message):
         )
         bot.send_message(chat_id, profile_text, parse_mode="Markdown")
 
-    elif text == "📜 Service Price":
+    elif text in ["📜 Service Price", "Service Price"]:
         supp = get_setting("support_contact")
         price_msg = (
-            "💬 **SOCIAL MEDIA ALL SERVICE** 💬\n"
+            "💬 SOCIAL MEDIA ALL SERVICE 💬\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "💥 **টেলিগ্রাম লিস্ট** 👇\n"
+            "💥 টেলিগ্রাম লিস্ট 👇\n"
             "🔹 1K Member = 30 TK (NoRefill)\n"
             "🔹 1K Lifetime Member = 160 TK\n"
             "🔹 Post View 1K = 3 TK\n"
             "🔹 Post React 1K = 10 TK\n"
             "🔹 100 Vote = 30 TK\n\n"
-            "💥 **টিকটক** 👇\n"
+            "💥 টিকটক 👇\n"
             "🔹 1K Like = 40 TK\n"
             "🔹 10K View = 30 TK\n"
             "🔹 1K Follower = 200 TK\n"
             "🔹 1K Share = 20 TK\n"
             "🔹 100 Real Comment = 40 TK\n\n"
-            "💥 **ইউটিউব** 👇\n"
+            "💥 ইউটিউব 👇\n"
             "🔹 1K Subscriber = 190 TK\n"
             "🔹 1K Like = 50 TK\n"
             "🔹 1K View = 130 TK\n"
             "🔹 100 Comment = 40 TK\n\n"
-            "💥 **ইন্সট্রাগ্রাম** 👇\n"
+            "💥 ইন্সট্রাগ্রাম 👇\n"
             "🔹 1K Follower = 150 TK\n"
             "🔹 10K View = 10 TK\n"
             "🔹 100K View = 70 TK\n"
             "🔹 1K Like = 40 TK\n\n"
-            "💥 **ফেসবুক** 👇\n"
+            "💥 ফেসবুক 👇\n"
             "🔹 1K Real Follower = 60 TK\n"
             "🔹 1K Post React = 75 TK\n"
             "🔹 100 Real Comment = 40 TK\n"
             "🔹 1K Share = 100 TK\n"
             "🔹 1K Video View = 20 TK\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "🎁 **বিশেষ দ্রষ্টব্য:** সর্বনিম্ন ১ টাকা অর্ডার করতে পারবেন।\n\n"
-            f"📞 **বিস্তারিত জানতে:** @{supp}"
+            "🎁 বিশেষ দ্রষ্টব্য: সর্বনিম্ন ১ টাকা অর্ডার করতে পারবেন।\n\n"
+            f"📞 বিস্তারিত জানতে: @{supp}"
         )
-        bot.send_message(chat_id, price_msg, parse_mode="Markdown")
+        bot.send_message(chat_id, price_msg)
 
     elif text == "💰 Deposit":
         dep_markup = types.InlineKeyboardMarkup(row_width=2)
