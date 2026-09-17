@@ -7,7 +7,6 @@ from threading import Thread
 API_TOKEN = "8761302883:AAGGgeUVSjQkuucXQXdJHtPHz-Gw2HQ9dT8"
 SUPER_ADMIN_ID = 8764166382  # আপনার আইডি
 
-# 🎯 আপনার সেট করা অর্ডার লগ চ্যানেল ইউজারনেম
 ORDER_LOG_CHANNEL = "@SMMproLiat" 
 
 bot = telebot.TeleBot(API_TOKEN)
@@ -47,28 +46,51 @@ def init_db():
     ''')
     
     cursor.execute('INSERT OR IGNORE INTO admins (user_id) VALUES (?)', (SUPER_ADMIN_ID,))
-    cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("support_contact", "justtrustbro")')
+    cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("support_contact", "EREN_Zz")')
+    cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("bkash_no", "01700000000")')
+    cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("nagad_no", "01700000000")')
+    cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("rocket_no", "01700000000")')
+    cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("gateway_link", "https://yourpaymentgateway.com")')
     cursor.execute('REPLACE INTO settings (key, value) VALUES ("log_channel", ?)', (ORDER_LOG_CHANNEL,))
 
+    # আপনার দেয়া সর্বশেষ প্রাইস লিস্ট (১০০০ টির রেট অনুযায়ী পার ইউনিট বের করে সেট করা হয়েছে)
     default_services = [
-        ("tiktok_like", "🎵 TikTok Like", 0.04, 100),
-        ("tiktok_views", "🎵 TikTok Views", 0.003, 1000),
-        ("tiktok_followers", "🎵 TikTok Follower", 0.20, 100),
-        ("fb_page_followers", "🔵 FB Page Follower", 0.06, 100),
-        ("fb_id_followers", "🔵 FB ID Follower", 0.06, 100),
-        ("fb_post_like", "🔵 FB Post Like", 0.075, 100),
-        ("fb_post_react", "🔵 FB Post React", 0.075, 100),
-        ("fb_video_views", "🔵 FB Video Views", 0.02, 1000),
-        ("ig_followers", "📷 IG Follower", 0.15, 100),
-        ("ig_like", "📷 IG Like", 0.04, 100),
-        ("ig_views", "📷 IG Views", 0.001, 1000),
-        ("yt_subscribe", "🎥 YT Subscribe", 0.19, 100),
-        ("yt_like", "🎥 YT Like", 0.05, 100),
-        ("yt_views", "🎥 YT Views", 0.13, 1000),
-        ("yt_watchtime", "🎥 YT Watch Time", 0.80, 100)
+        # Telegram
+        ("tg_member_norefill", "💥 TG 1K Member (NoRefill)", 0.03, 34),
+        ("tg_member_lifetime", "💥 TG 1K Lifetime Member", 0.16, 7),
+        ("tg_post_view", "💥 TG Post View 1K", 0.003, 334),
+        ("tg_post_react", "💥 TG Post React 1K", 0.01, 100),
+        ("tg_vote", "💥 TG 100 Vote", 0.30, 4),
+        
+        # TikTok
+        ("tiktok_like", "💥 TikTok 1K Like", 0.04, 25),
+        ("tiktok_views", "💥 TikTok 10K View", 0.003, 334),
+        ("tiktok_followers", "💥 TikTok 1K Follower", 0.20, 5),
+        ("tiktok_share", "💥 TikTok 1K Share", 0.02, 50),
+        ("tiktok_comment", "💥 TikTok 100 Real Comment", 0.40, 3),
+
+        # YouTube
+        ("yt_subscribe", "💥 YT 1K Subscriber", 0.19, 6),
+        ("yt_like", "💥 YT 1K Like", 0.05, 20),
+        ("yt_views", "💥 YT 1K View", 0.13, 8),
+        ("yt_comment", "💥 YT 100 Comment", 0.40, 3),
+
+        # Instagram
+        ("ig_followers", "💥 IG 1K Follower", 0.15, 7),
+        ("ig_views_10k", "💥 IG 10K View", 0.001, 1000),
+        ("ig_views_100k", "💥 IG 100K View", 0.0007, 1429),
+        ("ig_like", "💥 IG 1K Like", 0.04, 25),
+
+        # Facebook
+        ("fb_real_follower", "💥 FB 1K Real Follower", 0.06, 17),
+        ("fb_post_react", "💥 FB 1K Post React", 0.075, 14),
+        ("fb_comment", "💥 FB 100 Real Comment", 0.40, 3),
+        ("fb_share", "💥 FB 1K Share", 0.10, 10),
+        ("fb_video_views", "💥 FB 1K Video View", 0.02, 50)
     ]
+    
     for s_key, s_name, rate, min_q in default_services:
-        cursor.execute('INSERT OR IGNORE INTO services (service_key, service_name, rate, min_qty) VALUES (?, ?, ?, ?)',
+        cursor.execute('REPLACE INTO services (service_key, service_name, rate, min_qty) VALUES (?, ?, ?, ?)',
                        (s_key, s_name, rate, min_q))
         
     conn.commit()
@@ -154,19 +176,21 @@ def main_menu(user_id):
 
 def platforms_menu():
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add("🎵 TikTok", "🔵 Facebook", "📷 Instagram", "🎥 YouTube", "🔙 মেইন মেনু")
+    markup.add("💥 টেলিগ্রাম", "💥 টিকটক", "💥 ইউটিউব", "💥 ইন্সট্রাগ্রাম", "💥 ফেসবুক", "🔙 মেইন মেনু")
     return markup
 
 def sub_services_menu(platform):
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    if platform == "🎵 TikTok":
-        markup.add("🎵 TikTok Like", "🎵 TikTok Views", "🎵 TikTok Follower")
-    elif platform == "🔵 Facebook":
-        markup.add("🔵 FB Page Follower", "🔵 FB ID Follower", "🔵 FB Post Like", "🔵 FB Post React", "🔵 FB Video Views")
-    elif platform == "📷 Instagram":
-        markup.add("📷 IG Follower", "📷 IG Like", "📷 IG Views")
-    elif platform == "🎥 YouTube":
-        markup.add("🎥 YT Subscribe", "🎥 YT Like", "🎥 YT Views", "🎥 YT Watch Time")
+    if platform == "💥 টেলিগ্রাম":
+        markup.add("💥 TG 1K Member (NoRefill)", "💥 TG 1K Lifetime Member", "💥 TG Post View 1K", "💥 TG Post React 1K", "💥 TG 100 Vote")
+    elif platform == "💥 টিকটক":
+        markup.add("💥 TikTok 1K Like", "💥 TikTok 10K View", "💥 TikTok 1K Follower", "💥 TikTok 1K Share", "💥 TikTok 100 Real Comment")
+    elif platform == "💥 ইউটিউব":
+        markup.add("💥 YT 1K Subscriber", "💥 YT 1K Like", "💥 YT 1K View", "💥 YT 100 Comment")
+    elif platform == "💥 ইন্সট্রাগ্রাম":
+        markup.add("💥 IG 1K Follower", "💥 IG 10K View", "💥 IG 100K View", "💥 IG 1K Like")
+    elif platform == "💥 ফেসবুক":
+        markup.add("💥 FB 1K Real Follower", "💥 FB 1K Post React", "💥 FB 100 Real Comment", "💥 FB 1K Share", "💥 FB 1K Video View")
     markup.add("🔙 ব্যাক করুন")
     return markup
 
@@ -174,6 +198,7 @@ def admin_panel_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("💳 Add Balance", callback_data="adm_add_bal"),
+        types.InlineKeyboardButton("⚙️ Deposit Settings", callback_data="adm_dep_settings"),
         types.InlineKeyboardButton("🏷 Change Price", callback_data="adm_change_price"),
         types.InlineKeyboardButton("📞 Change Support ID", callback_data="adm_change_supp"),
         types.InlineKeyboardButton("📢 Change Log Channel", callback_data="adm_change_log"),
@@ -191,15 +216,13 @@ def start_cmd(message):
     
     inline_kb = types.InlineKeyboardMarkup()
     inline_kb.add(types.InlineKeyboardButton("🚀 Join Channel", url="https://t.me/SMMproLiat"))
-    inline_kb.add(types.InlineKeyboardButton("👥 Join Group", url="https://t.me/SMMproLiat"))
     inline_kb.add(types.InlineKeyboardButton("⚡ Verify Membership", callback_data="verify"))
 
     welcome_text = (
         "👑 **WELCOME TO SMM PRO** ⚡\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "বটটি ব্যবহার করতে নিচের চ্যানেল ও গ্রুপে অবশ্যই জয়েন করুন।\n"
-        "📢 অফিসিয়াল চ্যানেল: @SMMproLiat\n"
-        "💬 অফিসিয়াল গ্রুপ: @smm_liat_itbot\n\n"
+        "বটটি ব্যবহার করতে নিচের চ্যানেলে জয়েন করুন।\n"
+        "📢 অফিসিয়াল চ্যানেল: @SMMproLiat\n\n"
         "🟢 জয়েন শেষ হলে নিচে Verify বাটনে ক্লিক করুন!"
     )
     bot.send_message(message.chat.id, welcome_text, parse_mode="Markdown", reply_markup=inline_kb)
@@ -234,6 +257,16 @@ def admin_callbacks(call):
         user_states[user_id] = {"admin_action": "add_balance"}
         bot.send_message(call.message.chat.id, "💳 **ব্যালেন্স অ্যাড ফরম্যাট:**\n`User_ID Amount`\n\nউদাহরণ: `6587881288 100`", parse_mode="Markdown")
 
+    elif action == "adm_dep_settings":
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        kb.add(
+            types.InlineKeyboardButton("📱 bKash Number", callback_data="set_bkash"),
+            types.InlineKeyboardButton("📱 Nagad Number", callback_data="set_nagad"),
+            types.InlineKeyboardButton("📱 Rocket Number", callback_data="set_rocket"),
+            types.InlineKeyboardButton("🌐 Gateway Link", callback_data="set_gateway")
+        )
+        bot.send_message(call.message.chat.id, "⚙️ **ডিপোজিট সিস্টেম সেটআপ:**", reply_markup=kb)
+
     elif action == "adm_change_supp":
         user_states[user_id] = {"admin_action": "change_support"}
         bot.send_message(call.message.chat.id, "📞 **নতুন সাপোর্ট ইউজারনেমটি লিখুন (@ ছাড়া):**")
@@ -261,13 +294,53 @@ def admin_callbacks(call):
             kb.add(types.InlineKeyboardButton(s_name, callback_data=f"setp_{services[s_name]['key']}"))
         bot.send_message(call.message.chat.id, "🏷 **যে সার্ভিসের দাম পরিবর্তন করতে চান সিলেক্ট করুন:**", reply_markup=kb)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_"))
+def deposit_settings_select(call):
+    user_id = call.from_user.id
+    if not is_admin(user_id): return
+    key = call.data.replace("set_", "")
+    user_states[user_id] = {"admin_action": f"set_{key}"}
+    bot.send_message(call.message.chat.id, f"📝 **নতুন {key.upper()} তথ্যটি লিখুন:**")
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("setp_"))
 def service_price_select(call):
     user_id = call.from_user.id
     if not is_admin(user_id): return
     service_key = call.data.replace("setp_", "")
     user_states[user_id] = {"admin_action": "set_price_value", "service_key": service_key}
-    bot.send_message(call.message.chat.id, "🔢 **প্রতি ১০০০ টির জন্য নতুন দাম (TK) লিখুন:**")
+    bot.send_message(call.message.chat.id, "🔢 **নতুন প্রতি ১০০০ টি বা ১ টি সার্ভিসের গড় দাম কত দিতে চান?**")
+
+# --- Deposit Option Handlers ---
+@bot.callback_query_handler(func=lambda call: call.data.startswith("dep_"))
+def deposit_method_handler(call):
+    user_id = call.from_user.id
+    method = call.data.replace("dep_", "")
+    supp = get_setting("support_contact")
+    
+    if method == "manual":
+        bkash = get_setting("bkash_no")
+        nagad = get_setting("nagad_no")
+        rocket = get_setting("rocket_no")
+        
+        msg = (
+            "📌 **ম্যানুয়াল ডিপোজিট তথ্য (Personal)**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔹 **bKash:** `{bkash}`\n"
+            f"🔹 **Nagad:** `{nagad}`\n"
+            f"🔹 **Rocket:** `{rocket}`\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "⚠️ **কীভাবে ক্যাশআউট / সেন্ড মানি করবেন:**\n"
+            "১. উপরে উল্লেখিত নম্বরে টাকা পাঠান।\n"
+            "২. টাকা পাঠানোর পর আপনার **ইউজার আইডি (`" + str(user_id) + "`)**, **কত টাকা পাঠিয়েছেন** এবং **TrxID** অ্যাডমিনকে পাঠান।\n\n"
+            f"📞 **অ্যাডমিন আইডিতে মেসেজ দিন:** @{supp}"
+        )
+        bot.send_message(call.message.chat.id, msg, parse_mode="Markdown")
+        
+    elif method == "gateway":
+        gw_link = get_setting("gateway_link")
+        inline_gw = types.InlineKeyboardMarkup()
+        inline_gw.add(types.InlineKeyboardButton("💳 Pay Online Now", url=gw_link))
+        bot.send_message(call.message.chat.id, "🌐 **ডাইরেক্ট পেমেন্ট গেটওয়ে**\n\nনিচের লিংকে ক্লিক করে বিকাশ/নগদ/রকেট/কার্ড দিয়ে ইনস্ট্যান্ট অটো ডিপোজিট করুন:", reply_markup=inline_gw)
 
 # --- Messages Handling ---
 @bot.message_handler(func=lambda message: True)
@@ -295,6 +368,13 @@ def handle_all_messages(message):
                 bot.send_message(target_id, f"🎉 **অ্যাডমিন আপনার অ্যাকাউন্টে {amount:.2f} টাকা যুক্ত করেছেন!**", parse_mode="Markdown")
             except:
                 bot.send_message(chat_id, "❌ ফরম্যাট ভুল হয়েছে!")
+            user_states.pop(user_id, None)
+            return
+
+        elif action in ["set_bkash", "set_nagad", "set_rocket", "set_gateway"]:
+            key = action.replace("set_", "") + ("_no" if "gateway" not in action else "_link")
+            set_setting(key, text.strip())
+            bot.send_message(chat_id, f"✅ {key.upper()} সফলভাবে আপডেট করা হয়েছে!")
             user_states.pop(user_id, None)
             return
 
@@ -349,7 +429,7 @@ def handle_all_messages(message):
                 cursor.execute('UPDATE services SET rate = ? WHERE service_key = ?', (per_unit_rate, s_key))
                 conn.commit()
                 conn.close()
-                bot.send_message(chat_id, f"✅ দাম পরিবর্তন হয়েছে: {new_rate_1k} TK / 1000")
+                bot.send_message(chat_id, f"✅ দাম পরিবর্তন সফল হয়েছে!")
             except:
                 bot.send_message(chat_id, "❌ সংখ্যা লিখুন!")
             user_states.pop(user_id, None)
@@ -379,44 +459,90 @@ def handle_all_messages(message):
     elif text == "🟢 Buy Service":
         bot.send_message(chat_id, "🛒 **সার্ভিস মেনু ওপেন হয়েছে**\n\nনিচের কিবোর্ড থেকে প্ল্যাটফর্ম সিলেক্ট করুন:", reply_markup=platforms_menu())
 
-    elif text in ["🎵 TikTok", "🔵 Facebook", "📷 Instagram", "🎥 YouTube"]:
+    elif text in ["💥 টেলিগ্রাম", "💥 টিকটক", "💥 ইউটিউব", "💥 ইন্সট্রাগ্রাম", "💥 ফেসবুক"]:
         bot.send_message(chat_id, f"👉 **{text} এর সার্ভিসসমূহ:**\n\nআপনার কাঙ্খিত সার্ভিসটি বেছে নিন:", reply_markup=sub_services_menu(text))
 
     elif text in services:
         service_data = services[text]
         user_states[user_id] = {"service_name": text, "step": "quantity", "rate": service_data["rate"], "min": service_data["min"]}
+        
+        min_cost = service_data["min"] * service_data["rate"]
         bot.send_message(
             chat_id,
             f"🎯 **{text}**\n"
-            f"💰 প্রতি ১০০০ পরিমাণ = {service_data['rate'] * 1000:.2f} TK\n"
-            f"⚠️ সর্বনিম্ন অর্ডার = {service_data['min']}\n\n"
+            f"⚠️ সর্বনিম্ন অর্ডার পরিমাণ: {service_data['min']} টি (সর্বনিম্ন ১ টাকা অর্ডার গ্রহণযোগ্য)\n\n"
             f"🔢 **আপনি কতগুলো নিতে চান? (শুধু সংখ্যা লিখুন):**"
         )
 
     elif text == "👤 My Profile":
+        username_str = f"@{user[1]}" if user[1] else "Not Set"
         profile_text = (
             "👤 **USER ACCOUNT DETAILS** 👤\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"📛 **নাম:** {user[2]}\n"
             f"🆔 **আইডি:** `{user[0]}`\n"
-            f"🔗 **ইউজার:** @{user[1]}\n\n"
-            f"💰 **ব্যালেন্স:** {user[3]:.2f} TK\n"
+            f"🔗 **ইউজারনেম:** {username_str}\n\n"
+            f"💰 **বর্তমান ব্যালেন্স:** {user[3]:.2f} TK\n"
             f"💸 **মোট খরচ:** {user[4]:.2f} TK\n"
-            f"📦 **মোট অর্ডার:** {user[5]} টি\n"
-            "📊 **স্ট্যাটাস:** Verified ✅"
+            f"📦 **মোট অর্ডার সংখ্যা:** {user[5]} টি\n"
+            "📊 **স্ট্যাটাস:** Verified User ✅\n"
+            "━━━━━━━━━━━━━━━━━━━━"
         )
         bot.send_message(chat_id, profile_text, parse_mode="Markdown")
 
     elif text == "📜 Service Price":
-        price_msg = "💬 **OFFICIAL SMM SERVICE PRICING** 💬\n━━━━━━━━━━━━━━━━━━━━\n"
-        for s_name, data in services.items():
-            price_msg += f"🔹 {s_name} = {data['rate']*1000:.2f} TK / 1k\n"
-        price_msg += "━━━━━━━━━━━━━━━━━━━━\n🎁 সর্বনিম্ন অর্ডারে সুবিধা প্রযোজ্য।"
+        supp = get_setting("support_contact")
+        price_msg = (
+            "💬 **SOCIAL MEDIA ALL SERVICE** 💬\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "💥 **টেলিগ্রাম লিস্ট** 👇\n"
+            "🔹 1K Member = 30 TK (NoRefill)\n"
+            "🔹 1K Lifetime Member = 160 TK\n"
+            "🔹 Post View 1K = 3 TK\n"
+            "🔹 Post React 1K = 10 TK\n"
+            "🔹 100 Vote = 30 TK\n\n"
+            "💥 **টিকটক** 👇\n"
+            "🔹 1K Like = 40 TK\n"
+            "🔹 10K View = 30 TK\n"
+            "🔹 1K Follower = 200 TK\n"
+            "🔹 1K Share = 20 TK\n"
+            "🔹 100 Real Comment = 40 TK\n\n"
+            "💥 **ইউটিউব** 👇\n"
+            "🔹 1K Subscriber = 190 TK\n"
+            "🔹 1K Like = 50 TK\n"
+            "🔹 1K View = 130 TK\n"
+            "🔹 100 Comment = 40 TK\n\n"
+            "💥 **ইন্সট্রাগ্রাম** 👇\n"
+            "🔹 1K Follower = 150 TK\n"
+            "🔹 10K View = 10 TK\n"
+            "🔹 100K View = 70 TK\n"
+            "🔹 1K Like = 40 TK\n\n"
+            "💥 **ফেসবুক** 👇\n"
+            "🔹 1K Real Follower = 60 TK\n"
+            "🔹 1K Post React = 75 TK\n"
+            "🔹 100 Real Comment = 40 TK\n"
+            "🔹 1K Share = 100 TK\n"
+            "🔹 1K Video View = 20 TK\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "🎁 **বিশেষ দ্রষ্টব্য:** সর্বনিম্ন ১ টাকা অর্ডার করতে পারবেন।\n\n"
+            f"📞 **বিস্তারিত জানতে:** @{supp}"
+        )
         bot.send_message(chat_id, price_msg, parse_mode="Markdown")
 
     elif text == "💰 Deposit":
-        supp = get_setting("support_contact")
-        bot.send_message(chat_id, f"💰 **ডিপোজিট সিস্টেম**\n\nআপনার ID: `{user_id}`\n\nটাকা ডিপোজিট করতে অ্যাডমিনকে মেসেজ দিন:\n🔗 **অ্যাডমিন আইডি:** @{supp}", parse_mode="Markdown")
+        dep_markup = types.InlineKeyboardMarkup(row_width=2)
+        dep_markup.add(
+            types.InlineKeyboardButton("📱 bKash / Nagad / Rocket", callback_data="dep_manual"),
+            types.InlineKeyboardButton("🌐 Direct Payment Gateway", callback_data="dep_gateway")
+        )
+        bot.send_message(
+            chat_id,
+            "💰 **ডিপোজিট সিস্টেম**\n\n"
+            "পেমেন্ট মাধ্যম সিলেক্ট করুন:\n"
+            "১. **bKash / Nagad / Rocket:** ম্যানুয়ালি টাকা পাঠিয়ে অ্যাডমিন সাপোর্ট থেকে এড করান।\n"
+            "২. **Direct Payment Gateway:** পেমেন্ট গেটওয়ে দিয়ে ইনস্ট্যান্ট ডিপোজিট করুন।",
+            reply_markup=dep_markup
+        )
 
     elif text == "📞 Support":
         supp = get_setting("support_contact")
@@ -435,11 +561,12 @@ def handle_all_messages(message):
                 bot.send_message(chat_id, "❌ **দয়া করে শুধু সঠিক সংখ্যা লিখুন!**")
                 return
             qty = int(text)
-            if qty < state["min"]:
-                bot.send_message(chat_id, f"⚠️ **সর্বনিম্ন {state['min']} টি অর্ডার করতে হবে!**")
+            cost = qty * state["rate"]
+            
+            if cost < 1.0:
+                bot.send_message(chat_id, f"⚠️ **সর্বনিম্ন ১ টাকার অর্ডার করতে হবে!** (আপনার দেওয়া পরিমাণের খরচ: {cost:.2f} TK)")
                 return
 
-            cost = qty * state["rate"]
             if user[3] < cost:
                 bot.send_message(chat_id, f"❌ **পর্যাপ্ত ব্যালেন্স নেই!**\n\nমোট লাগবে: {cost:.2f} TK\nআপনার ব্যালেন্স: {user[3]:.2f} TK\n\nডিপোজিট করতে `💰 Deposit` অপশনে যান।")
                 user_states.pop(user_id, None)
@@ -487,7 +614,7 @@ def handle_all_messages(message):
                 except:
                     pass
 
-            # Auto Post to Public Log Channel (@SMMproLiat)
+            # Auto Post to Public Log Channel
             log_chan = get_setting("log_channel")
             if log_chan:
                 channel_msg = (
