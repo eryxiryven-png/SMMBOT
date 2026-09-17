@@ -5,7 +5,10 @@ from flask import Flask
 from threading import Thread
 
 API_TOKEN = "8761302883:AAGGgeUVSjQkuucXQXdJHtPHz-Gw2HQ9dT8"
-SUPER_ADMIN_ID = 8764166382  # মূল মালিকের ID
+SUPER_ADMIN_ID = 8764166382  # আপনার আইডি
+
+# 🎯 আপনার সেট করা অর্ডার লগ চ্যানেল ইউজারনেম
+ORDER_LOG_CHANNEL = "@SMMproLiat" 
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -13,7 +16,6 @@ bot = telebot.TeleBot(API_TOKEN)
 def init_db():
     conn = sqlite3.connect('smm_panel.db')
     cursor = conn.cursor()
-    # Users Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
@@ -24,20 +26,17 @@ def init_db():
             total_orders INTEGER DEFAULT 0
         )
     ''')
-    # Admins Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             user_id INTEGER PRIMARY KEY
         )
     ''')
-    # Settings Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
         )
     ''')
-    # Services & Pricing Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS services (
             service_key TEXT PRIMARY KEY,
@@ -47,28 +46,22 @@ def init_db():
         )
     ''')
     
-    # Super Admin Insertion
     cursor.execute('INSERT OR IGNORE INTO admins (user_id) VALUES (?)', (SUPER_ADMIN_ID,))
-    # Default Support Contact
     cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("support_contact", "justtrustbro")')
+    cursor.execute('REPLACE INTO settings (key, value) VALUES ("log_channel", ?)', (ORDER_LOG_CHANNEL,))
 
-    # Default Services Initialization
     default_services = [
-        # TikTok
         ("tiktok_like", "🎵 TikTok Like", 0.04, 100),
         ("tiktok_views", "🎵 TikTok Views", 0.003, 1000),
         ("tiktok_followers", "🎵 TikTok Follower", 0.20, 100),
-        # Facebook
         ("fb_page_followers", "🔵 FB Page Follower", 0.06, 100),
         ("fb_id_followers", "🔵 FB ID Follower", 0.06, 100),
         ("fb_post_like", "🔵 FB Post Like", 0.075, 100),
         ("fb_post_react", "🔵 FB Post React", 0.075, 100),
         ("fb_video_views", "🔵 FB Video Views", 0.02, 1000),
-        # Instagram
         ("ig_followers", "📷 IG Follower", 0.15, 100),
         ("ig_like", "📷 IG Like", 0.04, 100),
         ("ig_views", "📷 IG Views", 0.001, 1000),
-        # YouTube
         ("yt_subscribe", "🎥 YT Subscribe", 0.19, 100),
         ("yt_like", "🎥 YT Like", 0.05, 100),
         ("yt_views", "🎥 YT Views", 0.13, 1000),
@@ -183,6 +176,7 @@ def admin_panel_keyboard():
         types.InlineKeyboardButton("💳 Add Balance", callback_data="adm_add_bal"),
         types.InlineKeyboardButton("🏷 Change Price", callback_data="adm_change_price"),
         types.InlineKeyboardButton("📞 Change Support ID", callback_data="adm_change_supp"),
+        types.InlineKeyboardButton("📢 Change Log Channel", callback_data="adm_change_log"),
         types.InlineKeyboardButton("👥 Add Admin", callback_data="adm_add_admin"),
         types.InlineKeyboardButton("🗑 Remove Admin", callback_data="adm_rem_admin"),
         types.InlineKeyboardButton("📢 Broadcast", callback_data="adm_broadcast")
@@ -226,7 +220,7 @@ def verify_cb(call):
     )
     bot.send_message(call.message.chat.id, dash_text, parse_mode="Markdown", reply_markup=main_menu(user_id))
 
-# --- Admin Panel Callback Handler ---
+# --- Admin Callbacks ---
 @bot.callback_query_handler(func=lambda call: call.data.startswith("adm_"))
 def admin_callbacks(call):
     user_id = call.from_user.id
@@ -238,11 +232,15 @@ def admin_callbacks(call):
 
     if action == "adm_add_bal":
         user_states[user_id] = {"admin_action": "add_balance"}
-        bot.send_message(call.message.chat.id, "💳 **ব্যালেন্স অ্যাড ফরম্যাট:**\nইউজার আইডি এবং পরিমাণ স্পেস দিয়ে লিখুন।\n\nউদাহরণ: `6587881288 100`", parse_mode="Markdown")
+        bot.send_message(call.message.chat.id, "💳 **ব্যালেন্স অ্যাড ফরম্যাট:**\n`User_ID Amount`\n\nউদাহরণ: `6587881288 100`", parse_mode="Markdown")
 
     elif action == "adm_change_supp":
         user_states[user_id] = {"admin_action": "change_support"}
-        bot.send_message(call.message.chat.id, "📞 **নতুন সাপোর্ট ইউজারনেমটি লিখুন (@ ছাড়া):**\nউদাহরণ: `justtrustbro`")
+        bot.send_message(call.message.chat.id, "📞 **নতুন সাপোর্ট ইউজারনেমটি লিখুন (@ ছাড়া):**")
+
+    elif action == "adm_change_log":
+        user_states[user_id] = {"admin_action": "change_log_channel"}
+        bot.send_message(call.message.chat.id, "📢 **অর্ডার লগ চ্যানেল Username বা ID দিন:**\nউদাহরণ: `@SMMproLiat`")
 
     elif action == "adm_add_admin":
         user_states[user_id] = {"admin_action": "add_admin"}
@@ -250,11 +248,11 @@ def admin_callbacks(call):
 
     elif action == "adm_rem_admin":
         user_states[user_id] = {"admin_action": "remove_admin"}
-        bot.send_message(call.message.chat.id, "🗑 **যে অ্যাডমিনকে রিমুভ করতে চান তার User ID লিখুন:**")
+        bot.send_message(call.message.chat.id, "🗑 **অ্যাডমিনের User ID লিখুন:**")
 
     elif action == "adm_broadcast":
         user_states[user_id] = {"admin_action": "broadcast"}
-        bot.send_message(call.message.chat.id, "📢 **সব ইউজারের কাছে যে বার্তাটি পাঠাতে চান তা লিখুন:**")
+        bot.send_message(call.message.chat.id, "📢 **ব্রডকাস্ট করার মেসেজটি লিখুন:**")
 
     elif action == "adm_change_price":
         services = get_services()
@@ -269,9 +267,9 @@ def service_price_select(call):
     if not is_admin(user_id): return
     service_key = call.data.replace("setp_", "")
     user_states[user_id] = {"admin_action": "set_price_value", "service_key": service_key}
-    bot.send_message(call.message.chat.id, f"🔢 **প্রতি ১০০০ টি সার্ভিসের জন্য নতুন দাম (TK) লিখুন:**")
+    bot.send_message(call.message.chat.id, "🔢 **প্রতি ১০০০ টির জন্য নতুন দাম (TK) লিখুন:**")
 
-# --- Message Processing ---
+# --- Messages Handling ---
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
     text = message.text
@@ -280,7 +278,7 @@ def handle_all_messages(message):
     user = get_user(user_id, message.from_user.username, message.from_user.first_name)
     services = get_services()
 
-    # Admin Action Processor
+    # Admin Processing
     if user_id in user_states and "admin_action" in user_states[user_id]:
         action = user_states[user_id]["admin_action"]
 
@@ -296,14 +294,21 @@ def handle_all_messages(message):
                 bot.send_message(chat_id, f"✅ User `{target_id}` এর অ্যাকাউন্টে {amount:.2f} TK জমা হয়েছে।", parse_mode="Markdown")
                 bot.send_message(target_id, f"🎉 **অ্যাডমিন আপনার অ্যাকাউন্টে {amount:.2f} টাকা যুক্ত করেছেন!**", parse_mode="Markdown")
             except:
-                bot.send_message(chat_id, "❌ ফরম্যাট ভুল হয়েছে! সঠিক ফরম্যাট: `User_ID Amount`", parse_mode="Markdown")
+                bot.send_message(chat_id, "❌ ফরম্যাট ভুল হয়েছে!")
             user_states.pop(user_id, None)
             return
 
         elif action == "change_support":
             supp_username = text.replace("@", "").strip()
             set_setting("support_contact", supp_username)
-            bot.send_message(chat_id, f"✅ নতুন সাপোর্ট অ্যাকাউন্ট সেট করা হয়েছে: @{supp_username}")
+            bot.send_message(chat_id, f"✅ নতুন সাপোর্ট অ্যাকাউন্ট: @{supp_username}")
+            user_states.pop(user_id, None)
+            return
+
+        elif action == "change_log_channel":
+            log_chan = text.strip()
+            set_setting("log_channel", log_chan)
+            bot.send_message(chat_id, f"✅ অর্ডার লগ চ্যানেল আপডেট হয়েছে: `{log_chan}`", parse_mode="Markdown")
             user_states.pop(user_id, None)
             return
 
@@ -315,9 +320,7 @@ def handle_all_messages(message):
                 cursor.execute('INSERT OR IGNORE INTO admins (user_id) VALUES (?)', (new_adm,))
                 conn.commit()
                 conn.close()
-                bot.send_message(chat_id, f"✅ নতুন অ্যাডমিন যুক্ত করা হয়েছে: `{new_adm}`", parse_mode="Markdown")
-            else:
-                bot.send_message(chat_id, "❌ অকার্যকর ID!")
+                bot.send_message(chat_id, f"✅ নতুন অ্যাডমিন যুক্ত হয়েছে: `{new_adm}`", parse_mode="Markdown")
             user_states.pop(user_id, None)
             return
 
@@ -346,9 +349,9 @@ def handle_all_messages(message):
                 cursor.execute('UPDATE services SET rate = ? WHERE service_key = ?', (per_unit_rate, s_key))
                 conn.commit()
                 conn.close()
-                bot.send_message(chat_id, f"✅ সার্ভিস এর দাম সফলভাবে পরিবর্তন হয়েছে! নতুন দাম: {new_rate_1k} TK / 1000")
+                bot.send_message(chat_id, f"✅ দাম পরিবর্তন হয়েছে: {new_rate_1k} TK / 1000")
             except:
-                bot.send_message(chat_id, "❌ অকার্যকর পরিমাণ! শুধু সংখ্যা লিখুন।")
+                bot.send_message(chat_id, "❌ সংখ্যা লিখুন!")
             user_states.pop(user_id, None)
             return
 
@@ -365,13 +368,13 @@ def handle_all_messages(message):
                     sent_count += 1
                 except:
                     pass
-            bot.send_message(chat_id, f"✅ মোট {sent_count} জন ইউজারের কাছে নোটিফিকেশন পাঠানো হয়েছে।")
+            bot.send_message(chat_id, f"✅ মোট {sent_count} জন ইউজারের কাছে পাঠানো হয়েছে।")
             user_states.pop(user_id, None)
             return
 
-    # User Regular Navigation
+    # User Core System
     if text == "⚙️ Admin Control Panel" and is_admin(user_id):
-        bot.send_message(chat_id, "🛠 **WELCOME TO ADMIN PANEL**\n\nনিচের বাটনগুলো দিয়ে পুরো বট নিয়ন্ত্রণ করুন:", reply_markup=admin_panel_keyboard())
+        bot.send_message(chat_id, "🛠 **WELCOME TO ADMIN PANEL**\n\nনিচের বাটনগুলো দিয়ে বট নিয়ন্ত্রণ করুন:", reply_markup=admin_panel_keyboard())
 
     elif text == "🟢 Buy Service":
         bot.send_message(chat_id, "🛒 **সার্ভিস মেনু ওপেন হয়েছে**\n\nনিচের কিবোর্ড থেকে প্ল্যাটফর্ম সিলেক্ট করুন:", reply_markup=platforms_menu())
@@ -424,7 +427,7 @@ def handle_all_messages(message):
     elif text in ["🔙 মেইন মেনু", "🔙 ব্যাক করুন"]:
         bot.send_message(chat_id, "🏠 **মেইন মেনু**", reply_markup=main_menu(user_id))
 
-    # Order Steps
+    # Order Placement Processing
     elif user_id in user_states and "step" in user_states[user_id]:
         state = user_states[user_id]
         if state["step"] == "quantity":
@@ -453,22 +456,21 @@ def handle_all_messages(message):
             cost = state["cost"]
             service_name = state["service_name"]
 
-            # Deduct balance & add order to Database
+            # Deduct Balance
             conn = sqlite3.connect('smm_panel.db')
             cursor = conn.cursor()
             cursor.execute('UPDATE users SET balance = balance - ?, spent = spent + ?, total_orders = total_orders + 1 WHERE user_id = ?',
                            (cost, cost, user_id))
             
-            # Fetch all admins to notify them
             cursor.execute('SELECT user_id FROM admins')
             admin_rows = cursor.fetchall()
             conn.commit()
             conn.close()
 
-            # Confirm User
+            # Confirm to User
             bot.send_message(chat_id, f"✅ **আপনার অর্ডার সফলভাবে সাবমিট হয়েছে!**\n\n📦 **সার্ভিস:** {service_name}\n🔢 **পরিমাণ:** {qty}\n💰 **কাটা ব্যালেন্স:** {cost:.2f} TK\n🔗 **লিংক:** {link}", reply_markup=main_menu(user_id))
 
-            # Send Notification to ALL Admins
+            # Send Notification to Admins
             admin_notice = (
                 "🚨 **NEW SMM ORDER RECEIVED** 🚨\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
@@ -484,6 +486,23 @@ def handle_all_messages(message):
                     bot.send_message(adm[0], admin_notice, parse_mode="Markdown")
                 except:
                     pass
+
+            # Auto Post to Public Log Channel (@SMMproLiat)
+            log_chan = get_setting("log_channel")
+            if log_chan:
+                channel_msg = (
+                    "🆓 **NEW AUTO ORDER SUCCESS** 🆓\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 **ইউজার:** {user[2]}\n"
+                    f"📦 **সার্ভিস:** {service_name}\n"
+                    f"🔢 **পরিমাণ:** {qty}\n"
+                    f"💰 **মোট খরচ:** {cost:.2f} TK\n"
+                    "✅ **স্ট্যাটাস:** Processing"
+                )
+                try:
+                    bot.send_message(log_chan, channel_msg, parse_mode="Markdown")
+                except Exception as e:
+                    print(f"Log Channel Post Error: {e}")
 
             user_states.pop(user_id, None)
 
