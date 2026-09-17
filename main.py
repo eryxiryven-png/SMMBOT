@@ -5,14 +5,15 @@ from flask import Flask
 from threading import Thread
 
 API_TOKEN = "8761302883:AAGGgeUVSjQkuucXQXdJHtPHz-Gw2HQ9dT8"
-ADMIN_ID = 8764166382
+SUPER_ADMIN_ID = 8764166382  # মূল মালিকের ID
 
 bot = telebot.TeleBot(API_TOKEN)
 
-# --- Database Setup ---
+# --- Database Management ---
 def init_db():
-    conn = sqlite3.connect('smm_database.db')
+    conn = sqlite3.connect('smm_panel.db')
     cursor = conn.cursor()
+    # Users Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
@@ -23,84 +24,129 @@ def init_db():
             total_orders INTEGER DEFAULT 0
         )
     ''')
+    # Admins Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS admins (
+            user_id INTEGER PRIMARY KEY
+        )
+    ''')
+    # Settings Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+    # Services & Pricing Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS services (
+            service_key TEXT PRIMARY KEY,
+            service_name TEXT,
+            rate REAL,
+            min_qty INTEGER
+        )
+    ''')
+    
+    # Super Admin Insertion
+    cursor.execute('INSERT OR IGNORE INTO admins (user_id) VALUES (?)', (SUPER_ADMIN_ID,))
+    # Default Support Contact
+    cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES ("support_contact", "justtrustbro")')
+
+    # Default Services Initialization
+    default_services = [
+        # TikTok
+        ("tiktok_like", "🎵 TikTok Like", 0.04, 100),
+        ("tiktok_views", "🎵 TikTok Views", 0.003, 1000),
+        ("tiktok_followers", "🎵 TikTok Follower", 0.20, 100),
+        # Facebook
+        ("fb_page_followers", "🔵 FB Page Follower", 0.06, 100),
+        ("fb_id_followers", "🔵 FB ID Follower", 0.06, 100),
+        ("fb_post_like", "🔵 FB Post Like", 0.075, 100),
+        ("fb_post_react", "🔵 FB Post React", 0.075, 100),
+        ("fb_video_views", "🔵 FB Video Views", 0.02, 1000),
+        # Instagram
+        ("ig_followers", "📷 IG Follower", 0.15, 100),
+        ("ig_like", "📷 IG Like", 0.04, 100),
+        ("ig_views", "📷 IG Views", 0.001, 1000),
+        # YouTube
+        ("yt_subscribe", "🎥 YT Subscribe", 0.19, 100),
+        ("yt_like", "🎥 YT Like", 0.05, 100),
+        ("yt_views", "🎥 YT Views", 0.13, 1000),
+        ("yt_watchtime", "🎥 YT Watch Time", 0.80, 100)
+    ]
+    for s_key, s_name, rate, min_q in default_services:
+        cursor.execute('INSERT OR IGNORE INTO services (service_key, service_name, rate, min_qty) VALUES (?, ?, ?, ?)',
+                       (s_key, s_name, rate, min_q))
+        
     conn.commit()
     conn.close()
 
 init_db()
 
+# --- Helper Functions ---
+def is_admin(user_id):
+    conn = sqlite3.connect('smm_panel.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM admins WHERE user_id = ?', (user_id,))
+    res = cursor.fetchone()
+    conn.close()
+    return res is not None
+
+def get_setting(key):
+    conn = sqlite3.connect('smm_panel.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT value FROM settings WHERE key = ?', (key,))
+    res = cursor.fetchone()
+    conn.close()
+    return res[0] if res else ""
+
+def set_setting(key, value):
+    conn = sqlite3.connect('smm_panel.db')
+    cursor = conn.cursor()
+    cursor.execute('REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
+    conn.commit()
+    conn.close()
+
 def get_user(user_id, username="", first_name=""):
-    conn = sqlite3.connect('smm_database.db')
+    conn = sqlite3.connect('smm_panel.db')
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
     user = cursor.fetchone()
     if not user:
-        cursor.execute('INSERT INTO users (user_id, username, first_name) VALUES (?, ?, ?)',
-                       (user_id, username, first_name))
+        cursor.execute('INSERT INTO users (user_id, username, first_name) VALUES (?, ?, ?)', (user_id, username, first_name))
         conn.commit()
         cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
         user = cursor.fetchone()
     conn.close()
     return user
 
-def update_balance(user_id, amount):
-    conn = sqlite3.connect('smm_database.db')
+def get_services():
+    conn = sqlite3.connect('smm_panel.db')
     cursor = conn.cursor()
-    cursor.execute('UPDATE users SET balance = balance + ? WHERE user_id = ?', (amount, user_id))
-    conn.commit()
+    cursor.execute('SELECT * FROM services')
+    rows = cursor.fetchall()
     conn.close()
+    services = {}
+    for r in rows:
+        services[r[1]] = {"key": r[0], "rate": r[2], "min": r[3]}
+    return services
 
-def deduct_balance_and_add_order(user_id, amount):
-    conn = sqlite3.connect('smm_database.db')
-    cursor = conn.cursor()
-    cursor.execute('UPDATE users SET balance = balance - ?, spent = spent + ?, total_orders = total_orders + 1 WHERE user_id = ?',
-                   (amount, amount, user_id))
-    conn.commit()
-    conn.close()
-
-# --- 24/7 Render Keep-Alive Server ---
+# --- 24/7 Render Keep-Alive ---
 app = Flask(__name__)
-
 @app.route('/')
 def home():
-    return "SMM Bot is Running 24/7!"
+    return "Pro SMM Panel Bot Active 24/7"
 
-def run():
+def run_flask():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run)
-    t.start()
-
-# --- Price List Data (Per 1000 Item / Unit Rate) ---
-PRICES = {
-    # TikTok
-    "🎵 TikTok Like": {"rate": 0.04, "unit": "Like", "min": 100},
-    "🎵 TikTok Views": {"rate": 0.003, "unit": "Views", "min": 1000},
-    "🎵 TikTok Follower": {"rate": 0.20, "unit": "Follower", "min": 100},
-    
-    # Facebook
-    "🔵 FB Page Follower": {"rate": 0.06, "unit": "Follower", "min": 100},
-    "🔵 FB ID Follower": {"rate": 0.06, "unit": "Follower", "min": 100},
-    "🔵 FB Post Like": {"rate": 0.075, "unit": "Like", "min": 100},
-    "🔵 FB Post React": {"rate": 0.075, "unit": "React", "min": 100},
-    "🔵 FB Video Views": {"rate": 0.02, "unit": "Views", "min": 1000},
-    
-    # Instagram
-    "📷 IG Follower": {"rate": 0.15, "unit": "Follower", "min": 100},
-    "📷 IG Like": {"rate": 0.04, "unit": "Like", "min": 100},
-    "📷 IG Views": {"rate": 0.001, "unit": "Views", "min": 1000},
-    
-    # YouTube
-    "🎥 YT Subscribe": {"rate": 0.19, "unit": "Subscriber", "min": 100},
-    "🎥 YT Like": {"rate": 0.05, "unit": "Like", "min": 100},
-    "🎥 YT Views": {"rate": 0.13, "unit": "Views", "min": 1000},
-    "🎥 YT Watch Time": {"rate": 0.80, "unit": "Hours", "min": 100}
-}
+    Thread(target=run_flask).start()
 
 user_states = {}
 
 # --- Keyboards ---
-def main_menu():
+def main_menu(user_id):
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add(
         types.KeyboardButton("🟢 Buy Service"),
@@ -109,17 +155,13 @@ def main_menu():
         types.KeyboardButton("👤 My Profile"),
         types.KeyboardButton("📞 Support")
     )
+    if is_admin(user_id):
+        markup.add(types.KeyboardButton("⚙️ Admin Control Panel"))
     return markup
 
 def platforms_menu():
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add(
-        types.KeyboardButton("🎵 TikTok"),
-        types.KeyboardButton("🔵 Facebook"),
-        types.KeyboardButton("📷 Instagram"),
-        types.KeyboardButton("🎥 YouTube"),
-        types.KeyboardButton("🔙 মেইন মেনু")
-    )
+    markup.add("🎵 TikTok", "🔵 Facebook", "📷 Instagram", "🎥 YouTube", "🔙 মেইন মেনু")
     return markup
 
 def sub_services_menu(platform):
@@ -135,10 +177,24 @@ def sub_services_menu(platform):
     markup.add("🔙 ব্যাক করুন")
     return markup
 
+def admin_panel_keyboard():
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("💳 Add Balance", callback_data="adm_add_bal"),
+        types.InlineKeyboardButton("🏷 Change Price", callback_data="adm_change_price"),
+        types.InlineKeyboardButton("📞 Change Support ID", callback_data="adm_change_supp"),
+        types.InlineKeyboardButton("👥 Add Admin", callback_data="adm_add_admin"),
+        types.InlineKeyboardButton("🗑 Remove Admin", callback_data="adm_rem_admin"),
+        types.InlineKeyboardButton("📢 Broadcast", callback_data="adm_broadcast")
+    )
+    return markup
+
 # --- Handlers ---
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
-    get_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
+    user_id = message.from_user.id
+    get_user(user_id, message.from_user.username, message.from_user.first_name)
+    
     inline_kb = types.InlineKeyboardMarkup()
     inline_kb.add(types.InlineKeyboardButton("🚀 Join Channel", url="https://t.me/JUSTTRUSTBR0"))
     inline_kb.add(types.InlineKeyboardButton("👥 Join Group", url="https://t.me/buyselgroup0"))
@@ -154,9 +210,10 @@ def start_cmd(message):
     )
     bot.send_message(message.chat.id, welcome_text, parse_mode="Markdown", reply_markup=inline_kb)
 
-@bot.callback_query_handler(func=lambda call: call.data == "verify")
+@bot.callback_query_handler(func=lambda call: call.data.startswith("verify"))
 def verify_cb(call):
-    user = get_user(call.from_user.id, call.from_user.username, call.from_user.first_name)
+    user_id = call.from_user.id
+    user = get_user(user_id, call.from_user.username, call.from_user.first_name)
     bot.answer_callback_query(call.id, "✅ Account Verified Successfully!")
     dash_text = (
         "🌟 **SERVICE MASTER DASHBOARD** 🌟\n"
@@ -167,64 +224,164 @@ def verify_cb(call):
         "━━━━━━━━━━━━━━━━━━━━\n"
         "নিচের বাটন থেকে সার্ভিস অর্ডার করুন:"
     )
-    bot.send_message(call.message.chat.id, dash_text, parse_mode="Markdown", reply_markup=main_menu())
+    bot.send_message(call.message.chat.id, dash_text, parse_mode="Markdown", reply_markup=main_menu(user_id))
 
-# --- Admin Commands ---
-@bot.message_handler(commands=['addbalance'])
-def add_bal_admin(message):
-    if message.from_user.id != ADMIN_ID:
+# --- Admin Panel Callback Handler ---
+@bot.callback_query_handler(func=lambda call: call.data.startswith("adm_"))
+def admin_callbacks(call):
+    user_id = call.from_user.id
+    if not is_admin(user_id):
+        bot.answer_callback_query(call.id, "❌ আপনি অ্যাডমিন নন!", show_alert=True)
         return
-    try:
-        args = message.text.split()
-        target_id = int(args[1])
-        amount = float(args[2])
-        update_balance(target_id, amount)
-        bot.reply_to(message, f"✅ Successfully added {amount} TK to User ID: `{target_id}`", parse_mode="Markdown")
-        bot.send_message(target_id, f"🎉 **অ্যাডমিন আপনার অ্যাকাউন্টে {amount} টাকা যুক্ত করেছেন!**", parse_mode="Markdown")
-    except Exception as e:
-        bot.reply_to(message, "❌ Format Invalid!\nUse: `/addbalance <user_id> <amount>`")
 
-@bot.message_handler(commands=['broadcast'])
-def broadcast_admin(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    msg_to_send = message.text.replace("/broadcast", "").strip()
-    if not msg_to_send:
-        bot.reply_to(message, "❌ বার্তা লিখুন! Use: `/broadcast <your_text>`")
-        return
-    
-    conn = sqlite3.connect('smm_database.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT user_id FROM users')
-    users = cursor.fetchall()
-    conn.close()
+    action = call.data
 
-    count = 0
-    for u in users:
-        try:
-            bot.send_message(u[0], f"📢 **ADMIN ANNOUNCEMENT**\n\n{msg_to_send}", parse_mode="Markdown")
-            count += 1
-        except:
-            pass
-    bot.reply_to(message, f"✅ Broadcast sent to {count} users.")
+    if action == "adm_add_bal":
+        user_states[user_id] = {"admin_action": "add_balance"}
+        bot.send_message(call.message.chat.id, "💳 **ব্যালেন্স অ্যাড ফরম্যাট:**\nইউজার আইডি এবং পরিমাণ স্পেস দিয়ে লিখুন।\n\nউদাহরণ: `6587881288 100`", parse_mode="Markdown")
 
-# --- Text Handler ---
+    elif action == "adm_change_supp":
+        user_states[user_id] = {"admin_action": "change_support"}
+        bot.send_message(call.message.chat.id, "📞 **নতুন সাপোর্ট ইউজারনেমটি লিখুন (@ ছাড়া):**\nউদাহরণ: `justtrustbro`")
+
+    elif action == "adm_add_admin":
+        user_states[user_id] = {"admin_action": "add_admin"}
+        bot.send_message(call.message.chat.id, "👥 **নতুন অ্যাডমিনের Telegram User ID লিখুন:**")
+
+    elif action == "adm_rem_admin":
+        user_states[user_id] = {"admin_action": "remove_admin"}
+        bot.send_message(call.message.chat.id, "🗑 **যে অ্যাডমিনকে রিমুভ করতে চান তার User ID লিখুন:**")
+
+    elif action == "adm_broadcast":
+        user_states[user_id] = {"admin_action": "broadcast"}
+        bot.send_message(call.message.chat.id, "📢 **সব ইউজারের কাছে যে বার্তাটি পাঠাতে চান তা লিখুন:**")
+
+    elif action == "adm_change_price":
+        services = get_services()
+        kb = types.InlineKeyboardMarkup(row_width=1)
+        for s_name in services:
+            kb.add(types.InlineKeyboardButton(s_name, callback_data=f"setp_{services[s_name]['key']}"))
+        bot.send_message(call.message.chat.id, "🏷 **যে সার্ভিসের দাম পরিবর্তন করতে চান সিলেক্ট করুন:**", reply_markup=kb)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("setp_"))
+def service_price_select(call):
+    user_id = call.from_user.id
+    if not is_admin(user_id): return
+    service_key = call.data.replace("setp_", "")
+    user_states[user_id] = {"admin_action": "set_price_value", "service_key": service_key}
+    bot.send_message(call.message.chat.id, f"🔢 **প্রতি ১০০০ টি সার্ভিসের জন্য নতুন দাম (TK) লিখুন:**")
+
+# --- Message Processing ---
 @bot.message_handler(func=lambda message: True)
-def handle_menu(message):
+def handle_all_messages(message):
     text = message.text
     chat_id = message.chat.id
     user_id = message.from_user.id
     user = get_user(user_id, message.from_user.username, message.from_user.first_name)
+    services = get_services()
 
-    if text == "🟢 Buy Service":
+    # Admin Action Processor
+    if user_id in user_states and "admin_action" in user_states[user_id]:
+        action = user_states[user_id]["admin_action"]
+
+        if action == "add_balance":
+            try:
+                target_id, amount = text.split()
+                target_id, amount = int(target_id), float(amount)
+                conn = sqlite3.connect('smm_panel.db')
+                cursor = conn.cursor()
+                cursor.execute('UPDATE users SET balance = balance + ? WHERE user_id = ?', (amount, target_id))
+                conn.commit()
+                conn.close()
+                bot.send_message(chat_id, f"✅ User `{target_id}` এর অ্যাকাউন্টে {amount:.2f} TK জমা হয়েছে।", parse_mode="Markdown")
+                bot.send_message(target_id, f"🎉 **অ্যাডমিন আপনার অ্যাকাউন্টে {amount:.2f} টাকা যুক্ত করেছেন!**", parse_mode="Markdown")
+            except:
+                bot.send_message(chat_id, "❌ ফরম্যাট ভুল হয়েছে! সঠিক ফরম্যাট: `User_ID Amount`", parse_mode="Markdown")
+            user_states.pop(user_id, None)
+            return
+
+        elif action == "change_support":
+            supp_username = text.replace("@", "").strip()
+            set_setting("support_contact", supp_username)
+            bot.send_message(chat_id, f"✅ নতুন সাপোর্ট অ্যাকাউন্ট সেট করা হয়েছে: @{supp_username}")
+            user_states.pop(user_id, None)
+            return
+
+        elif action == "add_admin":
+            if text.isdigit():
+                new_adm = int(text)
+                conn = sqlite3.connect('smm_panel.db')
+                cursor = conn.cursor()
+                cursor.execute('INSERT OR IGNORE INTO admins (user_id) VALUES (?)', (new_adm,))
+                conn.commit()
+                conn.close()
+                bot.send_message(chat_id, f"✅ নতুন অ্যাডমিন যুক্ত করা হয়েছে: `{new_adm}`", parse_mode="Markdown")
+            else:
+                bot.send_message(chat_id, "❌ অকার্যকর ID!")
+            user_states.pop(user_id, None)
+            return
+
+        elif action == "remove_admin":
+            if text.isdigit():
+                rem_adm = int(text)
+                if rem_adm == SUPER_ADMIN_ID:
+                    bot.send_message(chat_id, "❌ সুপার অ্যাডমিনকে রিমুভ করা সম্ভব নয়!")
+                else:
+                    conn = sqlite3.connect('smm_panel.db')
+                    cursor = conn.cursor()
+                    cursor.execute('DELETE FROM admins WHERE user_id = ?', (rem_adm,))
+                    conn.commit()
+                    conn.close()
+                    bot.send_message(chat_id, f"✅ অ্যাডমিন রিমুভ করা হয়েছে: `{rem_adm}`", parse_mode="Markdown")
+            user_states.pop(user_id, None)
+            return
+
+        elif action == "set_price_value":
+            try:
+                new_rate_1k = float(text)
+                per_unit_rate = new_rate_1k / 1000.0
+                s_key = user_states[user_id]["service_key"]
+                conn = sqlite3.connect('smm_panel.db')
+                cursor = conn.cursor()
+                cursor.execute('UPDATE services SET rate = ? WHERE service_key = ?', (per_unit_rate, s_key))
+                conn.commit()
+                conn.close()
+                bot.send_message(chat_id, f"✅ সার্ভিস এর দাম সফলভাবে পরিবর্তন হয়েছে! নতুন দাম: {new_rate_1k} TK / 1000")
+            except:
+                bot.send_message(chat_id, "❌ অকার্যকর পরিমাণ! শুধু সংখ্যা লিখুন।")
+            user_states.pop(user_id, None)
+            return
+
+        elif action == "broadcast":
+            conn = sqlite3.connect('smm_panel.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT user_id FROM users')
+            users = cursor.fetchall()
+            conn.close()
+            sent_count = 0
+            for u in users:
+                try:
+                    bot.send_message(u[0], f"📢 **অফিসিয়াল নোটিশ**\n\n{text}", parse_mode="Markdown")
+                    sent_count += 1
+                except:
+                    pass
+            bot.send_message(chat_id, f"✅ মোট {sent_count} জন ইউজারের কাছে নোটিফিকেশন পাঠানো হয়েছে।")
+            user_states.pop(user_id, None)
+            return
+
+    # User Regular Navigation
+    if text == "⚙️ Admin Control Panel" and is_admin(user_id):
+        bot.send_message(chat_id, "🛠 **WELCOME TO ADMIN PANEL**\n\nনিচের বাটনগুলো দিয়ে পুরো বট নিয়ন্ত্রণ করুন:", reply_markup=admin_panel_keyboard())
+
+    elif text == "🟢 Buy Service":
         bot.send_message(chat_id, "🛒 **সার্ভিস মেনু ওপেন হয়েছে**\n\nনিচের কিবোর্ড থেকে প্ল্যাটফর্ম সিলেক্ট করুন:", reply_markup=platforms_menu())
 
     elif text in ["🎵 TikTok", "🔵 Facebook", "📷 Instagram", "🎥 YouTube"]:
         bot.send_message(chat_id, f"👉 **{text} এর সার্ভিসসমূহ:**\n\nআপনার কাঙ্খিত সার্ভিসটি বেছে নিন:", reply_markup=sub_services_menu(text))
 
-    elif text in PRICES:
-        service_data = PRICES[text]
-        user_states[user_id] = {"service": text, "step": "quantity"}
+    elif text in services:
+        service_data = services[text]
+        user_states[user_id] = {"service_name": text, "step": "quantity", "rate": service_data["rate"], "min": service_data["min"]}
         bot.send_message(
             chat_id,
             f"🎯 **{text}**\n"
@@ -248,53 +405,38 @@ def handle_menu(message):
         bot.send_message(chat_id, profile_text, parse_mode="Markdown")
 
     elif text == "📜 Service Price":
-        price_list = (
-            "💬 **SOCIAL MEDIA ALL SERVICE LIST** 💬\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            "💥 **টেলিগ্রাম লিস্ট** 👇\n"
-            "🔹 1K Member = 30 TK (NoRefill)\n"
-            "🔹 1K Lifetime Member = 160 TK\n"
-            "🔹 Post View 1K = 3 TK\n"
-            "🔹 Post React 1K = 10 TK\n\n"
-            "💥 **টিকটক** 👇\n"
-            "🔹 1K Like = 40 TK | 10K View = 30 TK | 1K Follower = 200 TK\n\n"
-            "💥 **ফেসবুক** 👇\n"
-            "🔹 1K Follower = 60 TK | 1K React = 75 TK | 1K Video View = 20 TK\n\n"
-            "💥 **ইউটিউব** 👇\n"
-            "🔹 1K Sub = 190 TK | 1K View = 130 TK | 1K Like = 50 TK\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            "🎁 সর্বনিম্ন অর্ডারে সুবিধা প্রযোজ্য।"
-        )
-        bot.send_message(chat_id, price_list, parse_mode="Markdown")
+        price_msg = "💬 **OFFICIAL SMM SERVICE PRICING** 💬\n━━━━━━━━━━━━━━━━━━━━\n"
+        for s_name, data in services.items():
+            price_msg += f"🔹 {s_name} = {data['rate']*1000:.2f} TK / 1k\n"
+        price_msg += "━━━━━━━━━━━━━━━━━━━━\n🎁 সর্বনিম্ন অর্ডারে সুবিধা প্রযোজ্য।"
+        bot.send_message(chat_id, price_msg, parse_mode="Markdown")
 
     elif text == "💰 Deposit":
-        bot.send_message(chat_id, f"💰 **ডিপোজিট সিস্টেম**\n\nআপনার ID: `{user_id}`\n\nটাকা ডিপোজিট করতে অ্যাডমিনকে মেসেজ দিন:\nঅ্যাডমিন আইডি: @justtrustbro", parse_mode="Markdown")
+        supp = get_setting("support_contact")
+        bot.send_message(chat_id, f"💰 **ডিপোজিট সিস্টেম**\n\nআপনার ID: `{user_id}`\n\nটাকা ডিপোজিট করতে অ্যাডমিনকে মেসেজ দিন:\n🔗 **অ্যাডমিন আইডি:** @{supp}", parse_mode="Markdown")
 
     elif text == "📞 Support":
+        supp = get_setting("support_contact")
         inline_sup = types.InlineKeyboardMarkup()
-        inline_sup.add(types.InlineKeyboardButton("💬 অ্যাডমিনের সাথে কথা বলুন", url="https://t.me/justtrustbro"))
+        inline_sup.add(types.InlineKeyboardButton("💬 অ্যাডমিনের সাথে কথা বলুন", url=f"https://t.me/{supp}"))
         bot.send_message(chat_id, "📞 **সাপোর্ট সেন্টার**\nযেকোনো প্রয়োজনে সরাসরি অ্যাডমিনকে মেসেজ দিন।", reply_markup=inline_sup)
 
     elif text in ["🔙 মেইন মেনু", "🔙 ব্যাক করুন"]:
-        bot.send_message(chat_id, "🏠 **মেইন মেনু**", reply_markup=main_menu())
+        bot.send_message(chat_id, "🏠 **মেইন মেনু**", reply_markup=main_menu(user_id))
 
-    # Order Input Processing Step
-    elif user_id in user_states:
+    # Order Steps
+    elif user_id in user_states and "step" in user_states[user_id]:
         state = user_states[user_id]
-        
         if state["step"] == "quantity":
             if not text.isdigit():
                 bot.send_message(chat_id, "❌ **দয়া করে শুধু সঠিক সংখ্যা লিখুন!**")
                 return
             qty = int(text)
-            service_name = state["service"]
-            min_req = PRICES[service_name]["min"]
-
-            if qty < min_req:
-                bot.send_message(chat_id, f"⚠️ **সর্বনিম্ন {min_req} টি অর্ডার করতে হবে!**")
+            if qty < state["min"]:
+                bot.send_message(chat_id, f"⚠️ **সর্বনিম্ন {state['min']} টি অর্ডার করতে হবে!**")
                 return
 
-            cost = qty * PRICES[service_name]["rate"]
+            cost = qty * state["rate"]
             if user[3] < cost:
                 bot.send_message(chat_id, f"❌ **পর্যাপ্ত ব্যালেন্স নেই!**\n\nমোট লাগবে: {cost:.2f} TK\nআপনার ব্যালেন্স: {user[3]:.2f} TK\n\nডিপোজিট করতে `💰 Deposit` অপশনে যান।")
                 user_states.pop(user_id, None)
@@ -309,15 +451,24 @@ def handle_menu(message):
             link = text
             qty = state["quantity"]
             cost = state["cost"]
-            service_name = state["service"]
+            service_name = state["service_name"]
 
-            # Deduct Balance
-            deduct_balance_and_add_order(user_id, cost)
+            # Deduct balance & add order to Database
+            conn = sqlite3.connect('smm_panel.db')
+            cursor = conn.cursor()
+            cursor.execute('UPDATE users SET balance = balance - ?, spent = spent + ?, total_orders = total_orders + 1 WHERE user_id = ?',
+                           (cost, cost, user_id))
+            
+            # Fetch all admins to notify them
+            cursor.execute('SELECT user_id FROM admins')
+            admin_rows = cursor.fetchall()
+            conn.commit()
+            conn.close()
 
             # Confirm User
-            bot.send_message(chat_id, f"✅ **আপনার অর্ডার সফলভাবে সাবমিট হয়েছে!**\n\n📦 **সার্ভিস:** {service_name}\n🔢 **পরিমাণ:** {qty}\n💰 **মোট খরচ:** {cost:.2f} TK\n🔗 **লিংক:** {link}", reply_markup=main_menu())
+            bot.send_message(chat_id, f"✅ **আপনার অর্ডার সফলভাবে সাবমিট হয়েছে!**\n\n📦 **সার্ভিস:** {service_name}\n🔢 **পরিমাণ:** {qty}\n💰 **কাটা ব্যালেন্স:** {cost:.2f} TK\n🔗 **লিংক:** {link}", reply_markup=main_menu(user_id))
 
-            # Notify Admin
+            # Send Notification to ALL Admins
             admin_notice = (
                 "🚨 **NEW SMM ORDER RECEIVED** 🚨\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
@@ -328,7 +479,12 @@ def handle_menu(message):
                 f"💰 **কাটা ব্যালেন্স:** {cost:.2f} TK\n"
                 f"🔗 **লিংক:** `{link}`"
             )
-            bot.send_message(ADMIN_ID, admin_notice, parse_mode="Markdown")
+            for adm in admin_rows:
+                try:
+                    bot.send_message(adm[0], admin_notice, parse_mode="Markdown")
+                except:
+                    pass
+
             user_states.pop(user_id, None)
 
 if __name__ == '__main__':
