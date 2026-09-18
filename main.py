@@ -107,6 +107,27 @@ def is_admin(user_id):
     conn.close()
     return res is not None
 
+def notify_admins_new_user(user_id, username, first_name):
+    conn = sqlite3.connect('smm_panel.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM admins')
+    admins = cursor.fetchall()
+    conn.close()
+    
+    username_str = f"@{username}" if username else "Not Set"
+    admin_msg = (
+        "🆕 **NEW USER JOINED** 🆕\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"📛 **Name:** {first_name}\n"
+        f"🆔 **User ID:** `{user_id}`\n"
+        f"🔗 **Username:** {username_str}"
+    )
+    for adm in admins:
+        try:
+            bot.send_message(adm[0], admin_msg, parse_mode="Markdown")
+        except:
+            pass
+
 def get_setting(key):
     conn = sqlite3.connect('smm_panel.db')
     cursor = conn.cursor()
@@ -132,6 +153,7 @@ def get_user(user_id, username="", first_name=""):
         conn.commit()
         cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
         user = cursor.fetchone()
+        notify_admins_new_user(user_id, username, first_name)
     conn.close()
     return user
 
@@ -204,6 +226,7 @@ def admin_panel_keyboard():
         types.InlineKeyboardButton("📢 Change Log Channel", callback_data="adm_change_log"),
         types.InlineKeyboardButton("👥 Add Admin", callback_data="adm_add_admin"),
         types.InlineKeyboardButton("🗑 Remove Admin", callback_data="adm_rem_admin"),
+        types.InlineKeyboardButton("👥 User List", callback_data="adm_user_list"),
         types.InlineKeyboardButton("📢 Broadcast", callback_data="adm_broadcast")
     )
     return markup
@@ -282,6 +305,29 @@ def admin_callbacks(call):
     elif action == "adm_rem_admin":
         user_states[user_id] = {"admin_action": "remove_admin"}
         bot.send_message(call.message.chat.id, "🗑 **অ্যাডমিনের User ID লিখুন:**")
+
+    elif action == "adm_user_list":
+        conn = sqlite3.connect('smm_panel.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id, first_name, username, balance FROM users')
+        users = cursor.fetchall()
+        conn.close()
+
+        if not users:
+            bot.send_message(call.message.chat.id, "❌ কোনো ইউজার পাওয়া যায়নি।")
+            return
+
+        msg = f"👥 **TOTAL USERS:** {len(users)}\n━━━━━━━━━━━━━━━━━━━━\n"
+        for u in users:
+            u_id, f_name, u_name, bal = u
+            u_str = f"@{u_name}" if u_name else "No Username"
+            line = f"🔹 `{u_id}` | {f_name} ({u_str}) | 💰 {bal:.2f} TK\n"
+            if len(msg + line) > 4000:
+                bot.send_message(call.message.chat.id, msg, parse_mode="Markdown")
+                msg = ""
+            msg += line
+        if msg:
+            bot.send_message(call.message.chat.id, msg, parse_mode="Markdown")
 
     elif action == "adm_broadcast":
         user_states[user_id] = {"admin_action": "broadcast"}
