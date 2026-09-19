@@ -4,7 +4,7 @@ from telebot import types
 from flask import Flask
 from threading import Thread
 
-API_TOKEN = "8761302883:AAGGgeUVSjQkuucXQXdJHtPHz-Gw2HQ9dT8"
+API_TOKEN = "8761302883:AAHa7GnXEv0DNg1-IRqHb0vIjGTwXiRv5Dw"
 SUPER_ADMIN_ID = 8764166382  # আপনার আইডি
 
 ORDER_LOG_CHANNEL = "@SMMproLiat" 
